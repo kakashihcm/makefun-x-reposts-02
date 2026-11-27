@@ -3,13 +3,14 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const dir = dirname(fileURLToPath(import.meta.url));
-const posts = JSON.parse(readFileSync(join(dir, "POSTS.json"), "utf8"));
+const data = JSON.parse(readFileSync(join(dir, "POSTS.json"), "utf8"));
+const posts = Array.isArray(data) ? data : data.posts;
 
 if (!Array.isArray(posts) || posts.length === 0 || posts.length > 15) {
-  throw new Error("POSTS.json must be a JSON array of 1 to 15 post URLs");
+  throw new Error("POSTS.json must be {posts: [...]} with 1 to 15 post URLs");
 }
 
-const output = JSON.stringify(posts, null, 2);
+const output = JSON.stringify({ posts }, null, 2);
 mkdirSync("/output", { recursive: true });
 writeFileSync("/output/POSTS.json", output);
 mkdirSync(join(dir, "output"), { recursive: true });
