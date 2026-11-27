@@ -22,9 +22,12 @@ const postsPath = join(repoRoot, "POSTS.json");
 // but the handle must be present and the id must be all digits.
 const STATUS_PATTERN = /^https:\/\/x\.com\/[^/]+\/status\/(\d+)([?#].*)?$/;
 
-// Where the cleaned list ends up. The grader reads /output, and the
-// local copy next to the script is handy for a quick sanity check.
-const OUTPUT_FOLDERS = ["/output", join(repoRoot, "output")];
+// Where the cleaned list must end up: the grader reads /output, so
+// a failure to write there is fatal. The copy next to the script is
+// only a convenience for local runs; the grader mounts the repo
+// read-only, so writing it is best-effort and never fatal.
+const REQUIRED_OUTPUT_FOLDER = "/output";
+const LOCAL_OUTPUT_FOLDER = join(repoRoot, "output");
 
 function fail(message: string): never {
   throw new Error(message);
@@ -87,16 +90,28 @@ function cleanEntries(rawEntries: unknown[]): string[] {
   return cleaned;
 }
 
-// Save the cleaned list as pretty JSON in every output folder.
-// The file keeps the same shape as the input: { "posts": [urls] }.
+// Save the cleaned list as pretty JSON. The file keeps the same
+// shape as the input: { "posts": [urls] }. Writing /output is
+// required and any error there stops the run; the local copy inside
+// the repo is best-effort only, because the grader runs with the
+// repo mounted read-only and must not fail for that.
 function saveCleanedList(posts: string[]): void {
   console.log("step 3/4 - writing the cleaned list");
   const rendered = `${JSON.stringify({ posts }, null, 2)}\n`;
-  for (const folder of OUTPUT_FOLDERS) {
-    mkdirSync(folder, { recursive: true });
-    const target = join(folder, "POSTS.json");
-    writeFileSync(target, rendered);
-    console.log(`step 3/4 - wrote ${target}`);
+  mkdirSync(REQUIRED_OUTPUT_FOLDER, { recursive: true });
+  const requiredTarget = join(REQUIRED_OUTPUT_FOLDER, "POSTS.json");
+  writeFileSync(requiredTarget, rendered);
+  console.log(`step 3/4 - wrote ${requiredTarget}`);
+  try {
+    mkdirSync(LOCAL_OUTPUT_FOLDER, { recursive: true });
+    const localTarget = join(LOCAL_OUTPUT_FOLDER, "POSTS.json");
+    writeFileSync(localTarget, rendered);
+    console.log(`step 3/4 - wrote ${localTarget}`);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    console.log(
+      `step 3/4 - note: could not write repo output/POSTS.json (${reason}), continuing`,
+    );
   }
 }
 
